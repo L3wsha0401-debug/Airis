@@ -1,33 +1,35 @@
 # Airis
 
-Локальный голосовой ИИ-компаньон. Работает полностью офлайн: LLM через Ollama, долговременная память в ChromaDB, потоковый синтез речи (Silero TTS) и распознавание речи (faster-whisper).
+**English** | [Русский](README.ru.md)
 
-## Возможности
+A local voice AI companion. Runs fully offline: LLM via Ollama, long-term memory in ChromaDB, streaming speech synthesis (Silero TTS) and speech recognition (faster-whisper).
 
-- **Чат с LLM** через [Ollama](https://ollama.com) (по умолчанию `gemma2:9b`) с потоковым выводом в терминал.
-- **Потоковый TTS** — речь озвучивается по предложениям, пока модель ещё генерирует ответ. Используется Silero, голос `baya`, ресемплинг до 48 кГц.
-- **Голосовой ввод (STT)** — faster-whisper, режим push-to-talk (клавиша `space`), VAD и barge-in (можно перебить ассистента).
-- **Долговременная память** — факты о пользователе и о самой Airis автоматически извлекаются из диалога и хранятся в ChromaDB. Эмбеддинги — `bge-m3` (1024-d), с поддержкой русского языка. Поиск по косинусной близости, дедупликация фактов.
-- **Сессии** — история диалога (последние 12 ходов) сохраняется атомарно на диск и восстанавливается при запуске.
-- **Корректное завершение** — по `Ctrl+C`, `SIGTERM` или команде выхода сбрасывается очередь озвучки, сохраняются сессия и память.
+## Features
 
-## Требования
+- **LLM chat** via [Ollama](https://ollama.com) (`gemma2:9b` by default) with streaming output to the terminal.
+- **Streaming TTS** — speech is synthesized sentence by sentence while the model is still generating. Uses Silero with the `baya` voice, resampled to 48 kHz.
+- **Voice input (STT)** — faster-whisper, push-to-talk mode (`space` key), VAD and barge-in (you can interrupt the assistant).
+- **Long-term memory** — facts about the user and about Airis itself are extracted from the conversation automatically and stored in ChromaDB. Embeddings use `bge-m3` (1024-d) with multilingual support, cosine similarity search and fact deduplication.
+- **Sessions** — conversation history (last 12 turns) is saved atomically to disk and restored on startup.
+- **Graceful shutdown** — on `Ctrl+C`, `SIGTERM` or the exit command, the TTS queue is flushed and the session and memory are saved.
 
-- Windows (проект разрабатывался и тестировался под Windows)
+## Requirements
+
+- Windows (the project was developed and tested on Windows)
 - Python 3.10+
-- [Ollama](https://ollama.com) с загруженными моделями:
+- [Ollama](https://ollama.com) with the models pulled:
   ```bash
   ollama pull gemma2:9b
   ollama pull bge-m3
   ```
-- Модель Silero TTS (`model.pt`), путь к ней задаётся в `config.yaml`
-- Микрофон и устройство вывода звука
+- Silero TTS model (`model.pt`), with its path set in `config.yaml`
+- A microphone and an audio output device
 
-## Установка
+## Installation
 
 ```bash
-git clone https://github.com/L3wsha0401-debug/some-shit.git
-cd some-shit
+git clone https://github.com/L3wsha0401-debug/Airis.git
+cd Airis
 
 python -m venv venv
 venv\Scripts\activate
@@ -35,66 +37,67 @@ venv\Scripts\activate
 pip install torch numpy pyyaml colorama sounddevice ollama chromadb faster-whisper
 ```
 
-> Список зависимостей составлен по импортам в коде. Для воспроизводимости зафиксируйте версии: `pip freeze > requirements.txt`.
+> The dependency list is derived from the imports in the code. For reproducible installs, pin versions with `pip freeze > requirements.txt`.
 
-## Настройка
+## Configuration
 
-Все параметры находятся в [`config.yaml`](config.yaml):
+All settings live in [`config.yaml`](config.yaml):
 
-| Секция | Что настраивает |
-|--------|-----------------|
-| `ollama` | адрес сервера, модель, модель эмбеддингов, параметры генерации |
-| `tts` | путь к `model.pt`, голос, высота тона, частота дискретизации, mute |
-| `stt` | модель Whisper, устройство, режим ввода (`ptt`), горячая клавиша, VAD |
-| `memory` | каталог ChromaDB, порог дистанции, дедупликация, размер истории |
-| `logging` | каталог и файлы логов |
-| `personality` | имя пользователя по умолчанию, лимит эмодзи |
+| Section | What it controls |
+|---------|------------------|
+| `ollama` | server URL, model, embedding model, generation parameters |
+| `tts` | path to `model.pt`, voice, pitch shift, sample rate, mute |
+| `stt` | Whisper model, device, input mode (`ptt`), hotkey, VAD |
+| `memory` | ChromaDB directory, distance threshold, deduplication, history size |
+| `logging` | log directory and files |
+| `personality` | default user name, emoji limit |
 
-**Обязательно** поправьте `tts.model_path` — в конфиге указан локальный путь автора (`C:\LLM\Instruments\model.pt`).
+**You must change** `tts.model_path` — the config contains the author's local path (`C:\LLM\Instruments\model.pt`).
 
-## Запуск
+## Usage
 
-Убедитесь, что Ollama запущена, затем:
+Make sure Ollama is running, then:
 
 ```bash
 python run.py
 ```
 
-Для выхода используйте команду выхода в чате или `Ctrl+C`.
+To quit, use the exit command in the chat or press `Ctrl+C`.
 
-## Команды чата
+## Chat commands
 
-| Команда | Действие |
-|---------|----------|
-| `/help` | список команд |
-| `/mute` | включить/выключить озвучку |
-| `/memories` | показать сохранённые факты |
-| `/forget` | удалить факт из памяти |
-| `/name <имя>` | запомнить имя пользователя |
+| Command | Action |
+|---------|--------|
+| `/help` | list commands |
+| `/mute` | toggle speech output |
+| `/memories` | show stored facts |
+| `/forget` | delete a fact from memory |
+| `/name <name>` | remember the user's name |
 
-## Структура проекта
+## Project structure
 
 ```
 airis/
-├── config.py        # загрузка и валидация config.yaml
-├── core/            # команды, жизненный цикл, блокировки, промпты, потоковый вывод
-├── memory/          # ChromaDB, извлечение фактов, история сессии, логи памяти
-├── stt/             # запись, VAD, push-to-talk, barge-in, Whisper
-└── tts/             # разбиение на предложения, нормализация текста, синтез, ресемплинг
-run.py               # точка входа
-config.yaml          # конфигурация
-PROJECT.md           # подробное описание архитектуры и этапов
+├── config.py        # loading and validation of config.yaml
+├── core/            # commands, lifecycle, locks, prompts, streaming output
+├── memory/          # ChromaDB, fact extraction, session history, memory logs
+├── stt/             # recording, VAD, push-to-talk, barge-in, Whisper
+└── tts/             # sentence chunking, text normalization, synthesis, resampling
+run.py               # entry point
+config.yaml          # configuration
+PROJECT.md           # detailed architecture and milestones
+LICENSE              # MIT license
 ```
 
-## Данные, которые не попадают в репозиторий
+## Data that is not tracked in the repository
 
-Эти файлы создаются при работе и перечислены в `.gitignore`:
+These files are created at runtime and listed in `.gitignore`:
 
-- `Model/` — веса моделей (`*.gguf`, `*.pt`, `*.onnx`)
-- `chroma_db/` — векторная база памяти
-- `Logs/` — логи, история сессии, дамп памяти
-- `*.session` — сессии Telegram (приватные данные)
+- `Model/` — model weights (`*.gguf`, `*.pt`, `*.onnx`)
+- `chroma_db/` — vector memory database
+- `Logs/` — logs, session history, memory dump
+- `*.session` — Telegram sessions (private data)
 
-## Лицензия
+## License
 
-MIT, см. [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
