@@ -1,0 +1,87 @@
+# Airis Master Configuration File
+
+ollama:
+  url: "http://localhost:11434"
+  model: "gemma2:9b"
+  embedding_model: "bge-m3"
+  options:
+    num_ctx: 4096
+    temperature: 0.4
+    top_p: 0.9
+    min_p: 0.08
+    repeat_penalty: 1.1
+    repeat_last_n: 64
+    stop:
+      - "</tools>"
+      - "<tools>"
+      - "</schema>"
+      - "<schema>"
+      - "</think>"
+      - "<think>"
+      - "</tool_call>"
+      - "<tool_call>"
+      - "<start_of_turn>"
+      - "<end_of_turn>"
+      - "\n\n"
+      - "\nuser"
+      - "user"
+      - "\nassistant"
+      - "assistant"
+      - "L3wsha:"
+      - "Айрис:"
+      - "<|im_end|>"
+      - "<|im_start|>"
+      - "<|eot_id|>"
+      - "<|start_header_id|>"
+      - "</"
+      - "<|"
+
+tts:
+  enabled: true
+  model_path: "C:\\LLM\\Instruments\\model.pt"
+  speaker: "baya"
+  pitch_shift: 1.25
+  sample_rate: 48000
+  lazy_model: false
+  muted: false
+
+stt:
+  enabled: true
+  model_name: "small"
+  device: "cpu"
+  compute_type: "int8"
+  cpu_threads: 4
+  language: "ru"
+  beam_size: 1
+  sample_rate: 16000
+  input_mode: "ptt"
+  ptt_hotkey: "space"
+  vad_threshold: 0.5
+  vad_threshold_speaking: 0.75
+  vad_silence_timeout_s: 0.8
+  energy_floor: 0.005
+  barge_in: true
+
+memory:
+  chroma_dir: "chroma_db"
+  results_count: 3
+  max_distance: 0.35
+  dedup_threshold: 0.25
+  max_history_turns: 12
+  session_history_file: "Logs/session_history.json"
+  memory_log_file: "Logs/iris_memory.log"
+  chat_log_file: "Logs/logs.txt"
+
+session:
+  max_history_turns: 12
+  session_history_file: "Logs/session_history.json"
+
+logging:
+  logs_dir: "Logs"
+  memory_log_file: "Logs/iris_memory.log"
+  chat_log_file: "Logs/logs.txt"
+
+personality:
+  user_name_default: "l3wsha"
+  max_emojis_per_response: 2
+  allow_cookie_signature: false

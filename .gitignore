@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak
+venv/
+.venv/
+
+# Model weights & binary data
+Model/
+*.gguf
+*.onnx
+*.onnx.json
+*.pt
+*.bin
+
+# Runtime data
+chroma_db/
+Logs/
+*.log
+dummy.json
+test.json
+
+# Audio
+*.wav
+*.mp3
+
+# Private sessions
+*.session
+*.session-journal
+
+# Editors / local tooling
+.vscode/
+.agents/
