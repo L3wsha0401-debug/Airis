@@ -10,6 +10,8 @@ A local voice AI companion. Runs fully offline: LLM via Ollama, long-term memory
 - **Streaming TTS** — speech is synthesized sentence by sentence while the model is still generating. Uses Silero with the `baya` voice, resampled to 48 kHz.
 - **Voice input (STT)** — faster-whisper, push-to-talk mode (`space` key), VAD and barge-in (you can interrupt the assistant).
 - **Long-term memory** — facts about the user and about Airis itself are extracted from the conversation automatically and stored in ChromaDB. Embeddings use `bge-m3` (1024-d) with multilingual support, cosine similarity search and fact deduplication.
+- **Idle chatter** — after a pause in the conversation Airis can take the initiative and say a short spontaneous remark. It is postponed while speech is playing or recorded, and capped by `idle.max_idle_messages` in a row.
+- **Live2D avatar** — connects to [VTube Studio](https://denchisoft.com/) over WebSocket: real-time lip-sync from the TTS audio (RMS-based) and emotion hotkeys driven by the reply's emotion tag. If VTube Studio is not running, the avatar is skipped and everything else keeps working.
 - **Sessions** — conversation history (last 12 turns) is saved atomically to disk and restored on startup.
 - **Graceful shutdown** — on `Ctrl+C`, `SIGTERM` or the exit command, the TTS queue is flushed and the session and memory are saved.
 
@@ -34,7 +36,7 @@ cd Airis
 python -m venv venv
 venv\Scripts\activate
 
-pip install torch numpy pyyaml colorama sounddevice ollama chromadb faster-whisper
+pip install torch numpy pyyaml colorama sounddevice ollama chromadb faster-whisper pyvts websockets
 ```
 
 > The dependency list is derived from the imports in the code. For reproducible installs, pin versions with `pip freeze > requirements.txt`.
@@ -49,6 +51,8 @@ All settings live in [`config.yaml`](config.yaml):
 | `tts` | path to `model.pt`, voice, pitch shift, sample rate, mute |
 | `stt` | Whisper model, device, input mode (`ptt`), hotkey, VAD |
 | `memory` | ChromaDB directory, distance threshold, deduplication, history size |
+| `idle` | idle chatter: on/off, min/max pause, max messages in a row |
+| `avatar` | VTube Studio host/port, token path, lip-sync smoothing, emotion → hotkey mapping |
 | `logging` | log directory and files |
 | `personality` | default user name, emoji limit |
 
@@ -92,11 +96,13 @@ To quit, use the exit command in the chat or press `Ctrl+C`.
 ```
 airis/
 ├── config.py        # loading and validation of config.yaml
-├── core/            # commands, lifecycle, locks, prompts, streaming output
+├── avatar/          # VTube Studio client, lip-sync, avatar controller
+├── core/            # commands, lifecycle, idle chatter, locks, prompts, streaming output
 ├── memory/          # ChromaDB, fact extraction, session history, memory logs
 ├── stt/             # recording, VAD, push-to-talk, barge-in, Whisper
 └── tts/             # sentence chunking, text normalization, synthesis, resampling
 run.py               # entry point
+system_prompt.example.txt  # example system prompt (copy to system_prompt.txt)
 config.yaml          # configuration
 PROJECT.md           # detailed architecture and milestones
 LICENSE              # MIT license
