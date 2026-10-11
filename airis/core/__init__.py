@@ -17,7 +17,9 @@ from airis.core.lifecycle import (
     is_exit_command,
 )
 from airis.core.prompts import (
-    SYSTEM_BASE_TEMPLATE,
+    SystemPromptNotFoundError,
+    load_system_template,
+    load_idle_template,
     build_system_prompt,
 )
 from airis.core.stream import (
@@ -28,6 +30,12 @@ from airis.core.stream import (
     print_user_input_prompt,
 )
 from airis.core.commands import handle_chat_command
+from airis.core.idle import (
+    FORBIDDEN_IDLE_PHRASES,
+    IDLE_INTERNAL_TRIGGER,
+    build_idle_prompt,
+    IdleCoordinator,
+)
 
 __all__ = [
     "ollama_lock",
@@ -39,7 +47,9 @@ __all__ = [
     "graceful_shutdown",
     "register_signal_handlers",
     "is_exit_command",
-    "SYSTEM_BASE_TEMPLATE",
+    "SystemPromptNotFoundError",
+    "load_system_template",
+    "load_idle_template",
     "build_system_prompt",
     "sanitize_text",
     "clean_stream_filter",
@@ -47,4 +57,9 @@ __all__ = [
     "print_header",
     "print_user_input_prompt",
     "handle_chat_command",
+    "FORBIDDEN_IDLE_PHRASES",
+    "IDLE_INTERNAL_TRIGGER",
+    "build_idle_prompt",
+    "IdleCoordinator",
 ]
+

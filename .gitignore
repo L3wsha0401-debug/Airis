@@ -32,3 +32,7 @@ test.json
 # Editors / local tooling
 .vscode/
 .agents/
+
+# Personal prompts (provide manually, see README)
+system_prompt.txt
+idle_prompt.txt

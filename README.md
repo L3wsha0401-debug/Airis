@@ -54,6 +54,19 @@ All settings live in [`config.yaml`](config.yaml):
 
 **You must change** `tts.model_path` — the config contains the author's local path (`C:\LLM\Instruments\model.pt`).
 
+## System prompt (you must provide it)
+
+The system prompt / persona is **not included** in the repository. Before the first run, create it manually:
+
+1. Copy the example: `copy system_prompt.example.txt system_prompt.txt`
+2. Edit `system_prompt.txt` and describe the personality and style you want.
+
+Notes:
+- The file is read as UTF-8 and is ignored by git. Without it, `run.py` stops with an error.
+- You can use the `{user_name}` placeholder (it is replaced with the user's name). Escape literal curly braces as `{{` and `}}`.
+- The prompt **must** instruct the model to start every reply with one emotion tag: `[neutral]`, `[happy]`, `[smug]`, `[surprised]`, `[angry]`, `[blush]`, `[bored]` or `[thinking]`. The streaming filter and the avatar rely on these tags.
+- Optional: `idle_prompt.txt` customizes the instructions for spontaneous remarks during pauses. It supports `{user_name}` and `{forbidden_phrases}`. If the file is absent, a neutral built-in text is used.
+
 ## Usage
 
 Make sure Ollama is running, then:
@@ -97,6 +110,7 @@ These files are created at runtime and listed in `.gitignore`:
 - `chroma_db/` — vector memory database
 - `Logs/` — logs, session history, memory dump
 - `*.session` — Telegram sessions (private data)
+- `system_prompt.txt`, `idle_prompt.txt` — your personal prompts
 
 ## License
 

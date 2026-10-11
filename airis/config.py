@@ -111,6 +111,14 @@ class STTConfig:
     def vad_silence_duration_s(self, val: float) -> None:
         self.vad_silence_timeout_s = val
 
+    @property
+    def barge_in_latency_ms(self) -> int:
+        return 150
+
+    @barge_in_latency_ms.setter
+    def barge_in_latency_ms(self, val: int) -> None:
+        pass
+
 
 
 @dataclass
@@ -146,6 +154,40 @@ class PersonalityConfig:
 
 
 @dataclass
+class IdleConfig:
+    enabled: bool = True
+    idle_min_seconds: float = 35.0
+    idle_max_seconds: float = 75.0
+    max_idle_messages: int = 5
+
+
+@dataclass
+class AvatarConfig:
+    enabled: bool = True
+    host: str = "localhost"
+    port: int = 8001
+    plugin_name: str = "Airis Live2D Controller"
+    developer: str = "Airis Team"
+    token_path: str = "Logs/vts_token.txt"
+    reconnect_interval_s: float = 5.0
+    mouth_open_parameter: str = "MouthOpen"
+    min_rms: float = 0.01
+    max_rms: float = 0.20
+    smoothing: float = 0.6
+    frame_duration_ms: int = 50
+    expressions: Dict[str, str] = field(default_factory=lambda: {
+        "neutral": "hotkey_neutral",
+        "happy": "hotkey_happy",
+        "smug": "hotkey_smug",
+        "surprised": "hotkey_surprised",
+        "angry": "hotkey_angry",
+        "blush": "hotkey_blush",
+        "bored": "hotkey_bored",
+        "thinking": "hotkey_thinking",
+    })
+
+
+@dataclass
 class AppConfig:
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     tts: TTSConfig = field(default_factory=TTSConfig)
@@ -154,6 +196,8 @@ class AppConfig:
     session: SessionConfig = field(default_factory=SessionConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     personality: PersonalityConfig = field(default_factory=PersonalityConfig)
+    idle: IdleConfig = field(default_factory=IdleConfig)
+    avatar: AvatarConfig = field(default_factory=AvatarConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any] | None) -> AppConfig:
@@ -173,6 +217,8 @@ class AppConfig:
             "session": SessionConfig,
             "logging": LoggingConfig,
             "personality": PersonalityConfig,
+            "idle": IdleConfig,
+            "avatar": AvatarConfig,
         }
 
         for section, factory in section_factories.items():
@@ -255,3 +301,25 @@ def load_config(config_path: str | None = None) -> AppConfig:
         logging.warning(f"[CONFIG] Error loading {config_path}: {e}. Using defaults.")
 
     return config
+
+
+__all__ = [
+    "BASE_DIR",
+    "LOGS_DIR",
+    "MEMORY_LOG_FILE",
+    "CHAT_LOG_FILE",
+    "SESSION_HISTORY_FILE",
+    "DEFAULT_STOP_TOKENS",
+    "OllamaConfig",
+    "TTSConfig",
+    "STTConfig",
+    "MemoryConfig",
+    "SessionConfig",
+    "LoggingConfig",
+    "PersonalityConfig",
+    "IdleConfig",
+    "AvatarConfig",
+    "AppConfig",
+    "AirisConfig",
+    "load_config",
+]

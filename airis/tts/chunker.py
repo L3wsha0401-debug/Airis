@@ -56,7 +56,8 @@ class SentenceChunker:
                 break
 
             if match and m_obj:
-                sent = self._buffer[:match[0] + len(m_obj.group(1).rstrip())].strip()
+                raw_sent = self._buffer[:match[0] + len(m_obj.group(1).rstrip())].strip()
+                sent = re.sub(r'\[\s*[^\]]+\s*\]', '', raw_sent).strip()
                 self._buffer = self._buffer[match[1]:]
                 if sent:
                     sentences.append(sent)
@@ -67,6 +68,7 @@ class SentenceChunker:
 
     def flush(self) -> List[str]:
         rem = self._buffer.strip()
+        rem = re.sub(r'\[\s*[^\]]+\s*\]', '', rem).strip()
         self._buffer = ""
         return [rem] if rem else []
 

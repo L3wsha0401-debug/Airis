@@ -99,6 +99,8 @@ def clean_and_normalize_tts_text(text: str) -> str:
     """
     if not text:
         return ""
+    # Strip bracketed emotion tags and any bracketed annotations defense-in-depth
+    text = re.sub(r'\[\s*[^\]]+\s*\]', '', text)
     # Strip markdown bold, italics, headers, code backticks
     text = re.sub(r'[*_#`~>\[\]\(\)]', '', text)
     # Strip URLs

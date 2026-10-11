@@ -36,6 +36,7 @@ def graceful_shutdown(
     timeout: float = 2.0,
     _save_session_fn=None,
     _dump_memory_fn=None,
+    avatar_controller=None,
     **kwargs
 ) -> None:
     """
@@ -48,6 +49,13 @@ def graceful_shutdown(
     """
     from airis.memory.session import save_session_history
     from airis.memory.logger import dump_memory_log
+
+    # 0. Stop avatar controller if active
+    if avatar_controller and hasattr(avatar_controller, "stop") and callable(avatar_controller.stop):
+        try:
+            avatar_controller.stop(timeout=timeout)
+        except Exception:
+            pass
 
     # 1. Drain and stop voice playback
     if voice_engine and hasattr(voice_engine, "audio_queue") and voice_engine.audio_queue is not None:

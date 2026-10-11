@@ -34,12 +34,14 @@ class VoiceEngine:
         pitch_shift: float = 1.25,
         sample_rate: int = 48000,
         lazy_model: bool = True,
-        muted: bool = False
+        muted: bool = False,
+        avatar_controller: Optional[Any] = None,
     ):
         self.model_path = model_path
         self.speaker = speaker
         self.pitch_shift = pitch_shift
         self.sample_rate = sample_rate
+        self.avatar_controller = avatar_controller
         self.device = torch.device("cpu")
         self.model = None
         self._muted = bool(muted)
@@ -95,6 +97,11 @@ class VoiceEngine:
             self._silence_and_drain_playback()
 
     def _silence_and_drain_playback(self) -> None:
+        if self.avatar_controller:
+            try:
+                self.avatar_controller.reset_mouth()
+            except Exception:
+                pass
         try:
             sd.stop()
         except Exception:
@@ -175,6 +182,12 @@ class VoiceEngine:
         except Exception as e:
             logging.debug(f"[VoiceEngine Interrupt]: {e}")
 
+        if self.avatar_controller:
+            try:
+                self.avatar_controller.reset_mouth()
+            except Exception:
+                pass
+
         self._is_playing.clear()
         self._is_synthesizing.clear()
 
@@ -218,7 +231,7 @@ class VoiceEngine:
         if not sentence or not str(sentence).strip():
             return False
         norm = clean_and_normalize_tts_text(str(sentence))
-        if not norm:
+        if not norm or not norm.strip():
             return False
         self.sentence_queue.put(norm)
         return True
@@ -311,12 +324,22 @@ class VoiceEngine:
             try:
                 self._is_playing.set()
                 if not self.is_muted:
+                    if self.avatar_controller:
+                        try:
+                            self.avatar_controller.start_audio_playback(audio_data, self.sample_rate)
+                        except Exception as e:
+                            logging.debug(f"[Avatar Playback Hook Error]: {e}")
                     sd.play(audio_data, samplerate=self.sample_rate)
                     sd.wait()
             except Exception as e:
                 self.driver_error_count += 1
                 logging.warning(f"[Playback Driver Error]: {e}")
             finally:
+                if self.avatar_controller:
+                    try:
+                        self.avatar_controller.reset_mouth()
+                    except Exception:
+                        pass
                 self._is_playing.clear()
                 self.audio_queue.task_done()
 
@@ -345,6 +368,11 @@ class VoiceEngine:
             self._generation_id += 1
         self.sentence_queue.put(None)
         self.audio_queue.put(None)
+        if self.avatar_controller:
+            try:
+                self.avatar_controller.reset_mouth()
+            except Exception:
+                pass
         try:
             sd.stop()
         except Exception:

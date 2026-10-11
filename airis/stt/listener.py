@@ -105,3 +105,13 @@ class STTListener:
             self.vad_detector.stop()
         self.recorder.stop()
         logging.info("[STTListener] Stopped")
+
+    @property
+    def is_recording(self) -> bool:
+        """Returns True if the user is actively recording audio via PTT or VAD."""
+        if self.ptt_listener and getattr(self.ptt_listener, "is_pressed", False):
+            return True
+        if self.vad_detector and getattr(self.vad_detector, "state", "IDLE") == "RECORDING":
+            return True
+        return False
+

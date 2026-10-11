@@ -85,3 +85,33 @@ personality:
   user_name_default: "l3wsha"
   max_emojis_per_response: 2
   allow_cookie_signature: false
+
+idle:
+  enabled: true
+  idle_min_seconds: 35
+  idle_max_seconds: 75
+  max_idle_messages: 5
+
+avatar:
+  enabled: true
+  host: "localhost"
+  port: 8001
+  plugin_name: "Airis Live2D Controller"
+  developer: "Airis Team"
+  token_path: "Logs/vts_token.txt"
+  reconnect_interval_s: 5.0
+  mouth_open_parameter: "MouthOpen"
+  min_rms: 0.01
+  max_rms: 0.20
+  smoothing: 0.6
+  frame_duration_ms: 50
+  expressions:
+    neutral: "hotkey_neutral"
+    happy: "hotkey_happy"
+    smug: "hotkey_smug"
+    surprised: "hotkey_surprised"
+    angry: "hotkey_angry"
+    blush: "hotkey_blush"
+    bored: "hotkey_bored"
+    thinking: "hotkey_thinking"
+

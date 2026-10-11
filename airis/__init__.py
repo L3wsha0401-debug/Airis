@@ -7,7 +7,13 @@ from __future__ import annotations
 
 __version__ = "0.4.0"
 
-from airis.config import AppConfig, AirisConfig, STTConfig, load_config
+from airis.config import AppConfig, AirisConfig, STTConfig, IdleConfig, load_config
+from airis.core.idle import (
+    FORBIDDEN_IDLE_PHRASES,
+    IDLE_INTERNAL_TRIGGER,
+    build_idle_prompt,
+    IdleCoordinator,
+)
 from airis.core.locks import (
     ollama_lock,
     ollama_generation_lock,
@@ -114,4 +120,10 @@ __all__ = [
     "BargeInController",
     "BargeInDetector",
     "STTListener",
+    "IdleConfig",
+    "IdleCoordinator",
+    "FORBIDDEN_IDLE_PHRASES",
+    "IDLE_INTERNAL_TRIGGER",
+    "build_idle_prompt",
 ]
+
