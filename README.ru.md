@@ -121,6 +121,11 @@ PROJECT.md           # подробное описание архитектур�
 - `*.session` — сессии Telegram (приватные данные)
 - `system_prompt.txt`, `idle_prompt.txt` — ваши личные промты
 
+## История изменений (Changelog)
+
+- **v0.5 (2026-10-31)** — Модель STT по умолчанию обновлена с `small` на **`large-v3-turbo`** (`int8` на CPU, 6 потоков, поддержка `initial_prompt`), добавлены Silero VAD и фильтрация вдохов/кашля/40+ русских галлюцинаций Whisper, добавлена post-roll буферизация PTT (250 мс) против обрезки окончаний слов, ограничены потоки CPU для Silero TTS (`torch.set_num_threads(4)`), добавлено разрешение конфликтов фактов в памяти (`insert`/`replace`/`delete`) и авто-саммари сессии при выходе. Подробнее в [CHANGELOG.md](CHANGELOG.md).
+- **v0.4 (2026-10-11)** — Интеграция Live2D-аватара через VTube Studio (lip-sync по RMS и эмоции по хоткеям), инициатива в паузах (idle) и вынос личного `system_prompt.txt` из исходников.
+
 ## Лицензия
 
 MIT, см. [LICENSE](LICENSE).

@@ -122,6 +122,11 @@ These files are created at runtime and listed in `.gitignore`:
 - `*.session` — Telegram sessions (private data)
 - `system_prompt.txt`, `idle_prompt.txt` — your personal prompts
 
+## Changelog
+
+- **v0.5 (2026-10-31)** — Upgraded default STT model from `small` to **`large-v3-turbo`** (`int8` on CPU, 6 threads, `initial_prompt` support), added Silero VAD + confidence & 40+ Russian hallucination/breath/cough filters, added 250 ms PTT post-roll buffering to prevent clipped word endings, bounded Silero TTS CPU threads (`torch.set_num_threads(4)`), and added context-aware memory conflict resolution (`insert`/`replace`/`delete`) with automatic session summaries on shutdown. See [CHANGELOG.md](CHANGELOG.md).
+- **v0.4 (2026-10-11)** — Added Live2D avatar integration (VTube Studio WebSocket lip-sync + emotion hotkeys), autonomous idle chatter, and externalized `system_prompt.txt`.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
