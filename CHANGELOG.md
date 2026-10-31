@@ -3,6 +3,8 @@
 ## [v0.5] — 2026-10-31
 
 ### English
+- **Default LLM switched to `T-lite-it-1.0 (Q4_K_M)`**:
+  - Main conversational model in `config.yaml` changed from `gemma2:9b` to `hf.co/aovchinnikov/T-lite-it-1.0-Q4_K_M-GGUF` with tuned sampling parameters (`temperature: 0.65`, `min_p: 0.06`, `repeat_penalty: 1.05`) for natural Russian dialogue and lower VRAM usage.
 - **STT model upgraded to `large-v3-turbo` (`int8`, CPU)**:
   - Default Whisper model changed from `small` to `large-v3-turbo` (`int8`, 6 CPU threads, `beam_size: 1`, `initial_prompt: "Айрис, Лёша."`) for significantly better Russian inflection, proper noun, and sentence accuracy without GPU VRAM contention.
 - **Breath, cough & hallucination suppression (`airis/stt/engine.py`)**:
@@ -16,6 +18,8 @@
   - Added single-call LLM fact conflict resolution (`insert` / `replace` / `delete` / `ignore`), contextual recall using the previous assistant reply, and automatic Russian session summary generation on shutdown (`last_session_summary`).
 
 ### Русский
+- **Переход основной LLM на `T-lite-it-1.0 (Q4_K_M)`**:
+  - Основная диалоговая модель в `config.yaml` заменена с `gemma2:9b` на `hf.co/aovchinnikov/T-lite-it-1.0-Q4_K_M-GGUF` с настроенными параметрами генерации (`temperature: 0.65`, `min_p: 0.06`, `repeat_penalty: 1.05`) для более живого русского языка и меньшего потребления VRAM.
 - **Переход STT на модель `large-v3-turbo` (`int8`, CPU)**:
   - Модель распознавания речи по умолчанию заменена с `small` на `large-v3-turbo` (`int8`, 6 потоков CPU, `beam_size: 1`, `initial_prompt: "Айрис, Лёша."`) — исправлены окончания русских слов, имена собственные и пропуск слов в длинных фразах без нагрузки на VRAM видеокарты.
 - **Подавление вдохов, кашля и галлюцинаций Whisper (`airis/stt/engine.py`)**:
