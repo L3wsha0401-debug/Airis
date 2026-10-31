@@ -31,6 +31,13 @@ class STTListener:
         abort_generation_event: Optional[threading.Event] = None,
         model_name: str = "small",
         cpu_threads: int = 4,
+        beam_size: int = 1,
+        initial_prompt: Optional[str] = "Айрис, Лёша.",
+        vad_filter: bool = True,
+        min_speech_ms: int = 250,
+        no_speech_threshold: float = 0.6,
+        log_prob_threshold: float = -1.0,
+        ptt_post_roll_ms: int = 250,
         vad_threshold: float = 0.5,
         vad_threshold_speaking: float = 0.75,
         vad_silence_timeout_s: float = 0.8,
@@ -49,7 +56,13 @@ class STTListener:
             model_name=model_name,
             device="cpu",
             compute_type="int8",
-            cpu_threads=cpu_threads
+            cpu_threads=cpu_threads,
+            beam_size=beam_size,
+            initial_prompt=initial_prompt,
+            vad_filter=vad_filter,
+            min_speech_ms=min_speech_ms,
+            no_speech_threshold=no_speech_threshold,
+            log_prob_threshold=log_prob_threshold,
         )
         self.barge_in_controller = BargeInController(
             voice_engine=self.voice_engine,
@@ -64,7 +77,8 @@ class STTListener:
                 recorder=self.recorder,
                 hotkey=self.hotkey,
                 on_barge_in=self.barge_in_controller.trigger_barge_in,
-                on_utterance_ready=self._handle_audio_utterance
+                on_utterance_ready=self._handle_audio_utterance,
+                post_roll_ms=ptt_post_roll_ms,
             )
         elif self.input_mode == "vad":
             self.vad_detector = VADDetector(

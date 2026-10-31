@@ -260,6 +260,201 @@ def insert_fact(*args, **kwargs) -> bool:
     return _insert()
 
 
+def query_candidate_facts(
+    query_or_col: Any = None,
+    text_or_query: Any = None,
+    entity: str = "user",
+    n_results: int = 5,
+    collection_obj: Any = None,
+    lock: Optional[threading.Lock] = None,
+    **kwargs: Any,
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves top candidate facts (id, document, distance) for conflict resolution.
+    Supports polymorphic signatures:
+      query_candidate_facts(query_text, entity="user", n_results=5)
+      query_candidate_facts(collection, query_text, entity="user", n_results=5)
+      query_candidate_facts(query_text, collection_obj=col)
+    Guarantees CORE_USER_NAME_ID and 'Имя собеседника:' are excluded.
+    Thread-safe under chroma_lock.
+    """
+    query_text = kwargs.get("query_text", kwargs.get("query", None))
+    if isinstance(query_or_col, str):
+        query_text = query_or_col
+        if text_or_query is not None and not isinstance(text_or_query, str):
+            col = text_or_query
+        else:
+            col = collection_obj if collection_obj is not None else kwargs.get("collection", collection)
+    else:
+        col = query_or_col if query_or_col is not None else (collection_obj or kwargs.get("collection", collection))
+        if text_or_query is not None:
+            query_text = text_or_query
+
+    if col is None or not query_text or not str(query_text).strip():
+        return []
+
+    query_str = str(query_text).strip()
+    use_lock = lock if lock is not None else (chroma_lock if col is collection else None)
+
+    def _query():
+        try:
+            if hasattr(col, "count") and callable(col.count):
+                try:
+                    if col.count() == 0:
+                        return []
+                except Exception:
+                    pass
+
+            res = col.query(
+                query_texts=[query_str],
+                n_results=n_results,
+                where={"entity": entity}
+            )
+            if not isinstance(res, dict):
+                return []
+            raw_ids = res.get("ids") or []
+            raw_docs = res.get("documents") or []
+            raw_dists = res.get("distances") or []
+
+            ids = raw_ids[0] if (raw_ids and isinstance(raw_ids, list) and len(raw_ids) > 0 and isinstance(raw_ids[0], list)) else []
+            docs = raw_docs[0] if (raw_docs and isinstance(raw_docs, list) and len(raw_docs) > 0 and isinstance(raw_docs[0], list)) else []
+            dists = raw_dists[0] if (raw_dists and isinstance(raw_dists, list) and len(raw_dists) > 0 and isinstance(raw_dists[0], list)) else []
+
+            candidates = []
+            for cid, cdoc, cdist in zip(ids, docs, dists):
+                if not cid or cid == CORE_USER_NAME_ID:
+                    continue
+                if str(cdoc).startswith("Имя собеседника:"):
+                    continue
+                try:
+                    dist_val = float(cdist) if cdist is not None else 1.0
+                except (ValueError, TypeError):
+                    dist_val = 1.0
+                candidates.append({
+                    "id": str(cid),
+                    "fact": str(cdoc),
+                    "distance": dist_val,
+                })
+            return candidates
+        except Exception as e:
+            logging.debug(f"[MEMORY] Error querying candidate facts: {e}")
+            return []
+
+    if use_lock:
+        with use_lock:
+            return _query()
+    return _query()
+
+
+def update_fact(
+    fact_id_or_col: Any = None,
+    new_fact_or_id: Any = None,
+    new_fact_val: Optional[str] = None,
+    entity: str = "user",
+    collection_obj: Any = None,
+    lock: Optional[threading.Lock] = None,
+    **kwargs: Any,
+) -> bool:
+    """
+    Updates an existing fact in ChromaDB in-place by ID under chroma_lock.
+    Supports polymorphic signatures:
+      update_fact(fact_id, new_fact, entity="user")
+      update_fact(collection, fact_id, new_fact, entity="user")
+      update_fact(fact_id, new_fact, collection_obj=col)
+    Guards CORE_USER_NAME_ID against modification.
+    """
+    if isinstance(fact_id_or_col, str):
+        fact_id = fact_id_or_col
+        new_fact = new_fact_or_id
+        col = collection_obj or kwargs.get("collection", collection)
+    else:
+        col = fact_id_or_col if fact_id_or_col is not None else (collection_obj or kwargs.get("collection", collection))
+        fact_id = new_fact_or_id
+        new_fact = new_fact_val
+
+    if not fact_id and "fact_id" in kwargs:
+        fact_id = kwargs["fact_id"]
+    if not new_fact and "new_fact" in kwargs:
+        new_fact = kwargs["new_fact"]
+
+    if not fact_id or not str(fact_id).strip() or str(fact_id).strip() == CORE_USER_NAME_ID:
+        return False
+    if not new_fact or not str(new_fact).strip():
+        return False
+    if col is None:
+        return False
+
+    clean_fact = str(new_fact).strip()
+    clean_id = str(fact_id).strip()
+    use_lock = lock if lock is not None else (chroma_lock if col is collection else None)
+
+    def _update():
+        try:
+            col.upsert(
+                ids=[clean_id],
+                documents=[clean_fact],
+                metadatas=[{"entity": entity}]
+            )
+            logging.info(f"[ПАМЯТЬ ОБНОВЛЕНА ({entity.upper()})]: id={clean_id} -> {clean_fact}")
+            return True
+        except Exception as e:
+            logging.error(f"[MEMORY] Error updating fact id={clean_id}: {e}")
+            return False
+
+    if use_lock:
+        with use_lock:
+            return _update()
+    return _update()
+
+
+def delete_fact_by_id(
+    fact_id_or_col: Any = None,
+    id_val: Optional[str] = None,
+    collection_obj: Any = None,
+    lock: Optional[threading.Lock] = None,
+    **kwargs: Any,
+) -> bool:
+    """
+    Deletes a specific fact from ChromaDB by ID under chroma_lock.
+    Supports polymorphic signatures:
+      delete_fact_by_id(fact_id)
+      delete_fact_by_id(collection, fact_id)
+      delete_fact_by_id(fact_id, collection_obj=col)
+    Guards CORE_USER_NAME_ID against deletion.
+    """
+    if isinstance(fact_id_or_col, str):
+        fact_id = fact_id_or_col
+        col = collection_obj or kwargs.get("collection", collection)
+    else:
+        col = fact_id_or_col if fact_id_or_col is not None else (collection_obj or kwargs.get("collection", collection))
+        fact_id = id_val
+
+    if not fact_id and "fact_id" in kwargs:
+        fact_id = kwargs["fact_id"]
+
+    if not fact_id or not str(fact_id).strip() or str(fact_id).strip() == CORE_USER_NAME_ID:
+        return False
+    if col is None:
+        return False
+
+    clean_id = str(fact_id).strip()
+    use_lock = lock if lock is not None else (chroma_lock if col is collection else None)
+
+    def _delete():
+        try:
+            col.delete(ids=[clean_id])
+            logging.info(f"[ПАМЯТЬ УДАЛЕНА ПО ID]: id={clean_id}")
+            return True
+        except Exception as e:
+            logging.error(f"[MEMORY] Error deleting fact id={clean_id}: {e}")
+            return False
+
+    if use_lock:
+        with use_lock:
+            return _delete()
+    return _delete()
+
+
 def get_core_fact(key: str, collection_obj=None, lock: Optional[threading.Lock] = None) -> Optional[str]:
     """Retrieves a point system fact by key id under chroma_lock."""
     col = collection_obj if collection_obj is not None else collection

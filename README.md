@@ -6,9 +6,9 @@ A local voice AI companion. Runs fully offline: LLM via Ollama, long-term memory
 
 ## Features
 
-- **LLM chat** via [Ollama](https://ollama.com) (`gemma2:9b` by default) with streaming output to the terminal.
+- **LLM chat** via [Ollama](https://ollama.com) (`T-lite-it-1.0` Q4_K_M by default) with streaming output to the terminal.
 - **Streaming TTS** — speech is synthesized sentence by sentence while the model is still generating. Uses Silero with the `baya` voice, resampled to 48 kHz.
-- **Voice input (STT)** — faster-whisper, push-to-talk mode (`space` key), VAD and barge-in (you can interrupt the assistant).
+- **Voice input (STT)** — faster-whisper (`large-v3-turbo` `int8` on CPU by default), push-to-talk mode (`space` key) with 250 ms post-roll buffering to prevent clipped word endings, VAD noise and breath suppression, and conversational barge-in.
 - **Long-term memory** — facts about the user and about Airis itself are extracted from the conversation automatically and stored in ChromaDB. Embeddings use `bge-m3` (1024-d) with multilingual support, cosine similarity search and fact deduplication.
 - **Idle chatter** — after a pause in the conversation Airis can take the initiative and say a short spontaneous remark. It is postponed while speech is playing or recorded, and capped by `idle.max_idle_messages` in a row.
 - **Live2D avatar** — connects to [VTube Studio](https://denchisoft.com/) over WebSocket: real-time lip-sync from the TTS audio (RMS-based) and emotion hotkeys driven by the reply's emotion tag. If VTube Studio is not running, the avatar is skipped and everything else keeps working.
@@ -21,10 +21,14 @@ A local voice AI companion. Runs fully offline: LLM via Ollama, long-term memory
 - Python 3.10+
 - [Ollama](https://ollama.com) with the models pulled:
   ```bash
-  ollama pull gemma2:9b
+  ollama pull hf.co/aovchinnikov/T-lite-it-1.0-Q4_K_M-GGUF
   ollama pull bge-m3
   ```
 - Silero TTS model (`model.pt`), with its path set in `config.yaml`
+- Faster-Whisper `large-v3-turbo` model (~1.6 GB). It is downloaded automatically on first launch or can be pre-downloaded:
+  ```bash
+  python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3-turbo', device='cpu', compute_type='int8')"
+  ```
 - A microphone and an audio output device
 
 ## Installation
@@ -49,7 +53,7 @@ All settings live in [`config.yaml`](config.yaml):
 |---------|------------------|
 | `ollama` | server URL, model, embedding model, generation parameters |
 | `tts` | path to `model.pt`, voice, pitch shift, sample rate, mute |
-| `stt` | Whisper model, device, input mode (`ptt`), hotkey, VAD |
+| `stt` | Whisper model (`large-v3-turbo`), compute type (`int8`), CPU threads (6), beam size (1), initial prompt, VAD filtering, hallucination threshold, PTT post-roll buffering (250 ms), hotkey |
 | `memory` | ChromaDB directory, distance threshold, deduplication, history size |
 | `idle` | idle chatter: on/off, min/max pause, max messages in a row |
 | `avatar` | VTube Studio host/port, token path, lip-sync smoothing, emotion → hotkey mapping |

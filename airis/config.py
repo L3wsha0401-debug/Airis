@@ -78,6 +78,12 @@ class STTConfig:
     vad_silence_timeout_s: float = 0.8
     energy_floor: float = 0.005
     barge_in: bool = True
+    initial_prompt: str = "Айрис, Лёша."
+    vad_filter: bool = True
+    no_speech_threshold: float = 0.6
+    log_prob_threshold: float = -1.0
+    min_speech_ms: int = 250
+    ptt_post_roll_ms: int = 250
 
     @property
     def mode(self) -> str:
@@ -131,6 +137,7 @@ class MemoryConfig:
     session_history_file: str = "Logs/session_history.json"
     memory_log_file: str = "Logs/iris_memory.log"
     chat_log_file: str = "Logs/logs.txt"
+    shutdown_drain_timeout: float = 8.0
 
 
 @dataclass

@@ -33,7 +33,7 @@ def graceful_shutdown(
     history=None,
     client=None,
     logs_dir=None,
-    timeout: float = 2.0,
+    timeout: float = 8.0,
     _save_session_fn=None,
     _dump_memory_fn=None,
     avatar_controller=None,
@@ -42,7 +42,7 @@ def graceful_shutdown(
     """
     Coordinates orderly process termination:
     1. Drains and stops audio queue of voice_engine.
-    2. Signals memory_stop_event, drains memory_queue and joins memory_thread.
+    2. Waits for memory_queue tasks to complete, signals memory_stop_event, and joins memory_thread.
     3. Atomically saves session history to session_file.
     4. Dumps memory snapshot to Logs/iris_memory.log.
     5. Shuts down ChromaDB system client.
@@ -78,32 +78,78 @@ def graceful_shutdown(
             pass
 
     # 2. Stop memory worker and drain queue
-    if memory_stop_event:
+    end_drain = time.time() + timeout
+    if memory_queue is not None:
+        if memory_thread and hasattr(memory_thread, "is_alive") and memory_thread.is_alive():
+            while getattr(memory_queue, "unfinished_tasks", 0) > 0 and time.time() < end_drain and memory_thread.is_alive():
+                time.sleep(0.05)
+        else:
+            while not memory_queue.empty() and time.time() < end_drain:
+                try:
+                    memory_queue.get_nowait()
+                    memory_queue.task_done()
+                except Exception:
+                    break
+
+    if memory_stop_event is not None:
         try:
             memory_stop_event.set()
         except Exception:
             pass
 
-    if memory_queue:
-        t0 = time.time()
-        while not memory_queue.empty() and (time.time() - t0) < timeout:
+    if memory_thread and hasattr(memory_thread, "is_alive") and memory_thread.is_alive():
+        try:
+            remaining = max(0.1, end_drain - time.time())
+            memory_thread.join(timeout=remaining)
+        except Exception:
+            pass
+
+    if memory_queue is not None and not getattr(memory_queue, "empty", lambda: True)():
+        while not memory_queue.empty():
             try:
                 memory_queue.get_nowait()
                 memory_queue.task_done()
             except Exception:
                 break
 
-    if memory_thread and hasattr(memory_thread, "is_alive") and memory_thread.is_alive():
+    # 2.5 Generate or preserve session summary
+    new_msgs = kwargs.get("new_messages", None)
+    if new_msgs is None:
         try:
-            memory_thread.join(timeout=timeout)
+            from airis.memory.session import get_session_new_messages
+            new_msgs = get_session_new_messages()
         except Exception:
-            pass
+            new_msgs = []
+
+    new_count = kwargs.get("new_messages_count", None)
+    if new_count is None:
+        new_count = len(new_msgs) if new_msgs is not None else 0
+
+    session_summary = None
+    if new_count >= 4 and session_file:
+        try:
+            from airis.memory.session import generate_session_summary
+            from airis.memory.chroma import get_current_user_name
+            from airis.core.locks import ollama_lock
+            user_name = kwargs.get("user_name") or get_current_user_name()
+            summary_timeout = kwargs.get("summary_timeout", max(2.0, min(6.0, timeout - 2.0)))
+            session_summary = generate_session_summary(
+                new_msgs,
+                user_name=user_name,
+                timeout=summary_timeout,
+                lock=kwargs.get("ollama_lock", ollama_lock),
+            )
+        except Exception as e:
+            logging.warning(f"[LIFECYCLE] Error generating session summary on shutdown: {e}")
 
     # 3. Persist session history
     if session_file and history is not None:
         try:
             save_fn = _save_session_fn or save_session_history
-            save_fn(session_file, history)
+            try:
+                save_fn(session_file, history, last_session_summary=session_summary)
+            except TypeError:
+                save_fn(session_file, history)
         except Exception as e:
             logging.error(f"[LIFECYCLE] Error saving session history to {session_file}: {e}")
 
@@ -134,8 +180,9 @@ class ShutdownCoordinator:
     Thread-safe atomic lifecycle coordinator ensuring single execution of
     teardown procedures even under concurrent signals, exit commands, or atexit.
     """
-    def __init__(self, shutdown_fn=graceful_shutdown):
+    def __init__(self, shutdown_fn=graceful_shutdown, default_timeout: float = 8.0):
         self._shutdown_fn = shutdown_fn
+        self._default_timeout = default_timeout
         self._is_shutting_down = threading.Event()
         self._shutdown_lock = threading.Lock()
         self._execution_count = 0
@@ -152,6 +199,8 @@ class ShutdownCoordinator:
             self._execution_count += 1
 
         if self._shutdown_fn and callable(self._shutdown_fn):
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = self._default_timeout
             self._shutdown_fn(**kwargs)
         return True
 
@@ -165,7 +214,7 @@ class ShutdownCoordinator:
 
 
 # Default singleton coordinator
-shutdown_coordinator = ShutdownCoordinator(shutdown_fn=graceful_shutdown)
+shutdown_coordinator = ShutdownCoordinator(shutdown_fn=graceful_shutdown, default_timeout=8.0)
 
 
 def register_signal_handlers(coordinator: Optional[ShutdownCoordinator] = None, **shutdown_kwargs):

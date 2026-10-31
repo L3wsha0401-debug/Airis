@@ -8,8 +8,9 @@ user has to write manually. See ``system_prompt.example.txt`` and README.md.
 
 from __future__ import annotations
 import os
+import re
 import threading
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from airis.config import BASE_DIR
 
@@ -89,15 +90,45 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+def extract_last_assistant_response(
+    conversation_history: Optional[List[Dict[str, Any]]] = None
+) -> Optional[str]:
+    """
+    Extracts the most recent assistant response from conversation_history,
+    stripping emotion tags (e.g. [happy], <emotion>happy</emotion>).
+    Returns the cleaned text string, or None if no assistant turn was found.
+    """
+    if not conversation_history:
+        return None
+    for turn in reversed(conversation_history):
+        if isinstance(turn, dict) and turn.get("role") == "assistant":
+            content = turn.get("content")
+            if not content or not isinstance(content, str):
+                continue
+            # Strip bracketed emotion tags like [happy], [neutral], [thinking]
+            cleaned = re.sub(r'^\s*\[[a-zA-Z0-9_\-\s]+\]\s*', '', content)
+            # Strip XML emotion tags like <emotion>happy</emotion> or <emotion:...>
+            cleaned = re.sub(r'^\s*<emotion[^>]*>.*?</emotion>\s*', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+            cleaned = re.sub(r'^\s*<[^>]+>\s*', '', cleaned)
+            cleaned = cleaned.strip()
+            if cleaned:
+                return cleaned
+    return None
+
+
 def build_system_prompt(
     user_query: str,
     user_name: str = "l3wsha",
     collection_obj=None,
-    lock: Optional[threading.Lock] = None
+    lock: Optional[threading.Lock] = None,
+    conversation_history: Optional[List[Dict[str, Any]]] = None,
+    last_assistant_response: Optional[str] = None,
+    session_summary: Optional[str] = None,
 ) -> str:
     """
-    Constructs dynamic system prompt injecting stored user identity facts
-    and relevant semantic memories before LLM inference.
+    Constructs dynamic system prompt injecting stored user identity facts,
+    relevant semantic memories, and prior session summary before LLM inference.
+    Supports contextual recall using the preceding assistant response.
     """
     from airis.memory.chroma import (
         get_core_fact, recall_memory, CORE_USER_NAME_ID, get_default_collection
@@ -114,9 +145,17 @@ def build_system_prompt(
     user_name_fact = get_core_fact(CORE_USER_NAME_ID, collection_obj=col, lock=use_lock)
     user_name_str = f"- {user_name_fact}\n" if user_name_fact else ""
 
+    if last_assistant_response is None and conversation_history:
+        last_assistant_response = extract_last_assistant_response(conversation_history)
+
+    if last_assistant_response and last_assistant_response.strip():
+        recall_query = f"{last_assistant_response.strip()} {user_query}".strip()
+    else:
+        recall_query = user_query
+
     user_memories = recall_memory(
         col,
-        user_query,
+        recall_query,
         entity="user",
         max_distance=max_dist,
         lock=use_lock
@@ -127,8 +166,12 @@ def build_system_prompt(
     if user_name_str or user_mem_str:
         memory_block += f"\n\n# ФАКТЫ О СОБЕСЕДНИКЕ:\n{user_name_str}{user_mem_str}"
 
+    summary_block = ""
+    if session_summary and isinstance(session_summary, str) and session_summary.strip():
+        summary_block = f"\n\n# ЧТО ОБСУЖДАЛИ В ПРОШЛОЙ СЕССИИ:\n{session_summary.strip()}"
+
     base_prompt = load_system_template().format(user_name=user_name)
-    return base_prompt + memory_block
+    return base_prompt + memory_block + summary_block
 
 
 __all__ = [
@@ -139,5 +182,6 @@ __all__ = [
     "SystemPromptNotFoundError",
     "load_system_template",
     "load_idle_template",
+    "extract_last_assistant_response",
     "build_system_prompt",
 ]

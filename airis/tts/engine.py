@@ -43,6 +43,7 @@ class VoiceEngine:
         self.sample_rate = sample_rate
         self.avatar_controller = avatar_controller
         self.device = torch.device("cpu")
+        torch.set_num_threads(4)
         self.model = None
         self._muted = bool(muted)
         self._mute_lock = threading.Lock()

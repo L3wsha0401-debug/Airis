@@ -36,3 +36,14 @@ test.json
 # Personal prompts (provide manually, see README)
 system_prompt.txt
 idle_prompt.txt
+
+# Backward compatibility facades & legacy files
+Airis_V0.3.py
+Airis_V0_3.py
+
+# Test harness and internal documentation
+ORIGINAL_REQUEST.md
+TEST_INFRA.md
+TEST_READY.md
+tests/
+scripts/

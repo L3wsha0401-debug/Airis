@@ -21,6 +21,7 @@ from airis.core.prompts import (
     load_system_template,
     load_idle_template,
     build_system_prompt,
+    extract_last_assistant_response,
 )
 from airis.core.stream import (
     sanitize_text,
@@ -50,6 +51,7 @@ __all__ = [
     "SystemPromptNotFoundError",
     "load_system_template",
     "load_idle_template",
+    "extract_last_assistant_response",
     "build_system_prompt",
     "sanitize_text",
     "clean_stream_filter",

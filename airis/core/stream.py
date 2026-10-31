@@ -49,7 +49,8 @@ def clean_stream_filter(chunk_stream):
     hidden_tags = [("<think>", "</think>"), ("<tools>", "</tools>"), ("<tool_call>", "</tool_call>")]
     stop_markers = [
         "<start_of_turn>", "<end_of_turn>",
-        "user", "assistant",
+        "\nuser", "user:",
+        "\nassistant", "assistant:",
         "L3wsha:", "Айрис:",
         "<|", "</",
         "?>", "\n\n"
@@ -178,6 +179,7 @@ class EmotionStreamParser:
         self.on_emotion = on_emotion
         self.max_tag_length = max_tag_length
         self.detected_emotion: Optional[str] = None
+        self.had_explicit_tag: bool = False
         self._tag_resolved: bool = False
         self._buffer: str = ""
         self._strip_leading_space: bool = False
@@ -185,6 +187,7 @@ class EmotionStreamParser:
     def reset(self) -> None:
         """Resets the parser state for reuse across turns."""
         self.detected_emotion = None
+        self.had_explicit_tag = False
         self._tag_resolved = False
         self._buffer = ""
         self._strip_leading_space = False
@@ -229,7 +232,8 @@ class EmotionStreamParser:
                 bracket_end = stripped_leading.find(']')
                 if bracket_end != -1:
                     raw_tag = stripped_leading[1:bracket_end].strip().lower()
-                    emotion = raw_tag if raw_tag in self.valid_emotions else self.default_emotion
+                    self.had_explicit_tag = raw_tag in self.valid_emotions
+                    emotion = raw_tag if self.had_explicit_tag else self.default_emotion
                     self._resolve(emotion)
 
                     # Text following the closing bracket

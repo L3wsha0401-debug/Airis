@@ -61,6 +61,9 @@ from airis.memory import (
     maybe_store_identity_fact,
     load_session_history,
     save_session_history,
+    load_session_summary,
+    record_session_message,
+    reset_session_tracker,
     conversation_history,
     memory_queue,
     memory_thread,
@@ -318,11 +321,19 @@ def execute_idle_turn(
     if not cleaned_ai_response:
         return False
 
+    record_session_message('assistant', cleaned_ai_response)
+
     if coordinator is not None and getattr(coordinator, "idle", None):
         coordinator.idle.record_assistant_activity()
 
+    history_ai_response = (
+        f"[{parser.detected_emotion}] {cleaned_ai_response}"
+        if getattr(parser, "had_explicit_tag", False) and parser.detected_emotion
+        else cleaned_ai_response
+    )
+
     with session_history_lock:
-        conversation_history.append({'role': 'assistant', 'content': cleaned_ai_response})
+        conversation_history.append({'role': 'assistant', 'content': history_ai_response})
         if len(conversation_history) > max_history * 2:
             conversation_history[:] = conversation_history[-max_history * 2:]
         history_to_save = list(conversation_history)
@@ -387,6 +398,13 @@ def chat():
                 abort_generation_event=abort_generation_event,
                 model_name=cfg.stt.model_name,
                 cpu_threads=cfg.stt.cpu_threads,
+                beam_size=getattr(cfg.stt, "beam_size", 5),
+                initial_prompt=getattr(cfg.stt, "initial_prompt", "Айрис, Лёша."),
+                vad_filter=getattr(cfg.stt, "vad_filter", True),
+                min_speech_ms=getattr(cfg.stt, "min_speech_ms", 250),
+                no_speech_threshold=getattr(cfg.stt, "no_speech_threshold", 0.6),
+                log_prob_threshold=getattr(cfg.stt, "log_prob_threshold", -1.0),
+                ptt_post_roll_ms=getattr(cfg.stt, "ptt_post_roll_ms", 250),
                 vad_threshold=cfg.stt.vad_threshold,
                 vad_threshold_speaking=cfg.stt.vad_threshold_speaking,
                 vad_silence_timeout_s=cfg.stt.vad_silence_timeout_s,
@@ -397,9 +415,13 @@ def chat():
             logging.warning(f"[STT] STTListener initialization warning: {e}")
             stt_listener = None
 
-    # Restore session history
+    # Restore session history and summary
+    reset_session_tracker()
     session_file = cfg.session.session_history_file
     max_history = cfg.session.max_history_turns
+    last_session_summary = load_session_summary(session_file, lock=session_history_lock)
+    if last_session_summary:
+        print(Fore.CYAN + f"  📝 Сводка прошлой сессии: {last_session_summary}\n")
     loaded_history = load_session_history(session_file, max_turns=max_history, lock=session_history_lock)
     with session_history_lock:
         conversation_history.clear()
@@ -418,6 +440,7 @@ def chat():
         history=conversation_history,
         client=chroma_client,
         logs_dir=cfg.logging.logs_dir,
+        timeout=cfg.memory.shutdown_drain_timeout,
     )
 
     idle_coordinator = IdleCoordinator(
@@ -488,10 +511,15 @@ def chat():
         if maybe_store_identity_fact(user_input):
             continue
 
-        dynamic_system_prompt = build_system_prompt(user_input, current_user)
-
         with session_history_lock:
             history_snapshot = list(conversation_history)
+
+        dynamic_system_prompt = build_system_prompt(
+            user_input,
+            current_user,
+            conversation_history=history_snapshot,
+            session_summary=last_session_summary,
+        )
 
         messages = [{'role': 'system', 'content': dynamic_system_prompt}]
         messages.extend(history_snapshot)
@@ -560,16 +588,20 @@ def chat():
 
         cleaned_ai_response = clean_artifacts(full_response)
 
+        record_session_message('user', user_input)
+        record_session_message('assistant', cleaned_ai_response)
+
         memory_queue.put(("user", user_input))
-        if cleaned_ai_response:
-            memory_queue.put(("self", cleaned_ai_response))
 
         if coordinator.idle:
             coordinator.idle.record_assistant_activity()
 
+        detected_tag = parser.detected_emotion or "neutral"
+        history_ai_response = f"[{detected_tag}] {cleaned_ai_response}"
+
         with session_history_lock:
             conversation_history.append({'role': 'user', 'content': user_input})
-            conversation_history.append({'role': 'assistant', 'content': cleaned_ai_response})
+            conversation_history.append({'role': 'assistant', 'content': history_ai_response})
 
             if len(conversation_history) > max_history * 2:
                 conversation_history[:] = conversation_history[-max_history * 2:]
@@ -601,6 +633,7 @@ def chat():
         client=chroma_client,
         logs_dir=cfg.logging.logs_dir,
         avatar_controller=avatar_controller,
+        timeout=cfg.memory.shutdown_drain_timeout,
     )
 
 
