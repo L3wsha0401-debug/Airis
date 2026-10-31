@@ -34,8 +34,8 @@
 ## Установка
 
 ```bash
-git clone https://github.com/L3wsha0401-debug/some-shit.git
-cd some-shit
+git clone https://github.com/L3wsha0401-debug/Airis.git
+cd Airis
 
 python -m venv venv
 venv\Scripts\activate
@@ -61,6 +61,8 @@ pip install torch numpy pyyaml colorama sounddevice ollama chromadb faster-whisp
 | `personality` | имя пользователя по умолчанию, лимит эмодзи |
 
 **Обязательно** поправьте `tts.model_path` — в конфиге указан локальный путь автора (`C:\LLM\Instruments\model.pt`).
+
+**Свободный выбор моделей:** Вы не привязаны к моделям по умолчанию — в `config.yaml` можно заменить основную LLM (`ollama.model`) на любую модель из Ollama или свою GGUF по вкусу (например, `gemma2:9b`, `qwen2.5:7b`, `hermes3:8b` и т.д.), а также выбрать подходящую по скорости и железу модель STT в `stt.model_name` (`large-v3-turbo`, `medium`, `small`).
 
 ## Системный промт (нужно указать вручную)
 

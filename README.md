@@ -62,6 +62,8 @@ All settings live in [`config.yaml`](config.yaml):
 
 **You must change** `tts.model_path` — the config contains the author's local path (`C:\LLM\Instruments\model.pt`).
 
+**Choosing your own models:** You are not locked into the default models — you can change `ollama.model` in `config.yaml` to any Ollama model or local GGUF you prefer (for example `gemma2:9b`, `qwen2.5:7b`, `hermes3:8b`, etc.), and adjust `stt.model_name` (`large-v3-turbo`, `medium`, `small`) to fit your hardware and latency preferences.
+
 ## System prompt (you must provide it)
 
 The system prompt / persona is **not included** in the repository. Before the first run, create it manually:
